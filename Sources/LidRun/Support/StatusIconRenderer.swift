@@ -2,9 +2,11 @@ import AppKit
 
 /// 菜单栏图标：粗实心笔记本字形 + 右上角状态圆点。
 ///
-/// 默认（彩色关闭）渲染为模板图标，由系统在顶栏自动黑/白适配，永远锐利。
+/// 彩色关闭时渲染为模板图标，由系统在顶栏自动黑/白适配，永远锐利
+/// （此模式下状态圆点随模板变为单色，仅作存在指示）。
 /// 彩色开启时：激活=机身系统蓝；其余=机身 labelColor（深色顶栏呈白）；
-/// 状态用右上角小圆点表达，图标本体不再整体染色。
+/// 状态用右上角小圆点表达，圆点四周挖一圈透明环与字形分隔，
+/// 图标本体不再整体染色。
 enum StatusIconRenderer {
     static func image(active: Bool, colored: Bool, lidState: LidRunState, helperStatus: HelperStatus) -> NSImage {
         let size = NSSize(width: 22, height: 18)
@@ -24,10 +26,9 @@ enum StatusIconRenderer {
             return nil
         }()
 
-        // 机身颜色与是否模板。
-        let useColor = colored
+        // 机身颜色：模板模式下颜色被系统忽略（填 .black 占位）。
         let bodyColor: NSColor = {
-            guard useColor else { return .black } // 模板模式下颜色被系统忽略
+            guard colored else { return .black }
             if active && !needsAttention { return .systemBlue }
             return .labelColor
         }()
@@ -49,10 +50,15 @@ enum StatusIconRenderer {
             cg.fillPath()
             cg.restoreGState()
 
-            // 状态点（顶栏坐标，y 向上）：参考中心 (22.5,4.5)/26×20 → 这里右上角。
+            // 状态点（顶栏坐标，y 向上）：先用 .clear 挖一圈透明环，
+            // 让圆点与字形之间留出干净缝隙（对应已确认稿的描边分隔）。
             if let dotColor {
-                let d: CGFloat = 6.4
-                let dotRect = CGRect(x: size.width - d - 0.4, y: size.height - d - 0.6, width: d, height: d)
+                let d: CGFloat = 6.0
+                let dotRect = CGRect(x: size.width - d - 0.3, y: size.height - d - 0.5, width: d, height: d)
+                let ring = dotRect.insetBy(dx: -1.4, dy: -1.4)
+                cg.setBlendMode(.clear)
+                cg.fillEllipse(in: ring)
+                cg.setBlendMode(.normal)
                 cg.setFillColor(dotColor.cgColor)
                 cg.fillEllipse(in: dotRect)
             }
@@ -60,7 +66,7 @@ enum StatusIconRenderer {
         image.unlockFocus()
 
         // 彩色关闭 → 纯模板，系统自动适配顶栏；彩色开启 → 用真实颜色。
-        image.isTemplate = !useColor
+        image.isTemplate = !colored
         return image
     }
 }
