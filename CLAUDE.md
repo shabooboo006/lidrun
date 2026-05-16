@@ -68,10 +68,14 @@ Two concerns are easy to break and must be preserved when editing this file:
    *that saved value*, never an unconditional `0`. `restoreStaleLidRunStateIfNeeded()`
    runs at startup so a leftover state from a crash/forced quit is recovered.
 2. **Protection rules.** `protectionDecision(for:)` centralizes the
-   AC-only / low-battery / thermal gates. `enforceProtectionRules` is invoked on
-   every `PowerSourceMonitor` change and auto-disables lid-run (with
-   notification + log) when a gate trips. Normal anti-idle-sleep (IOKit
-   assertions) keeps working even when the helper is unavailable.
+   AC-only / low-battery / thermal gates. The AC-only gate
+   (`AppSettings.acOnlyProtection`) is **optional and defaults to off** — by
+   design lid-run keeps working on battery (lid closed, no external display,
+   no system sleep). Low-battery and thermal gates default on as safety nets.
+   `enforceProtectionRules` is invoked on every `PowerSourceMonitor` change and
+   auto-disables lid-run (with notification + log) when an *enabled* gate trips.
+   Normal anti-idle-sleep (IOKit assertions) keeps working even when the helper
+   is unavailable.
 
 ### Helper / XPC path
 

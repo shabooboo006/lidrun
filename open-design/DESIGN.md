@@ -15,7 +15,7 @@ LidRun 是 macOS 菜单栏工具，不是网站、落地页或完整桌面窗口
 
 - 只使用 Apple 系统字体栈：
   `-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", system-ui, sans-serif`
-- 中文界面默认由 PingFang SC 呈现，英文品牌名由 SF Pro 呈现。
+- 中文界面默认由 PingFang SC 呈现，英文品牌名 `LidRun` 由 SF Pro Rounded（`Font.system(design: .rounded)`，仍属 Apple 系统字体栈）呈现，小号并与菜单栏图标组成锁定字标。
 - 标题使用 700 字重；分区标题、行标题使用 600；状态、说明、数值使用 400-500。
 - 不使用 Inter、Roboto、Arial、衬线字体或装饰字体。
 
