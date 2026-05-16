@@ -162,6 +162,8 @@ final class HelperXPCClient: @unchecked Sendable {
             options: .privileged
         )
         newConnection.remoteObjectInterface = NSXPCInterface(with: LidRunHelperProtocol.self)
+        // 仅与同 Team 签名、身份正确的 helper 通话（macOS 13+）。
+        newConnection.setCodeSigningRequirement(LidRunConstants.helperCodeRequirement)
         newConnection.invalidationHandler = { [weak self] in
             self?.clearConnection()
             AppLog.helper.info("XPC connection invalidated")
