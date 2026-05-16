@@ -60,14 +60,8 @@ final class HelperAuthorizationService: ObservableObject {
             startAuthorizationPolling()
             return
         case .notFound:
-            if openDevelopmentInstallerIfAvailable() {
-                status = .installing
-                lastError = "当前运行包缺少可注册的内嵌 LaunchDaemon，已打开开发期授权安装器。"
-                startAuthorizationPolling()
-            } else {
-                status = .unavailable("当前 App 包缺少内嵌 LaunchDaemon")
-                lastError = "请先用 release 打包脚本生成带 helper 的 LidRun.app，或使用 script/install_helper_dev.sh 做本地授权。"
-            }
+            status = .unavailable("当前 App 包缺少内嵌 LaunchDaemon")
+            lastError = "当前运行的不是带内嵌 helper 的签名包。请用 script/dev_signed_run.sh 生成并安装 Developer ID 签名的 LidRun.app（普通 swift build / ad-hoc 包无法注册 SMAppService helper）。"
             return
         case .notRegistered:
             break
@@ -92,13 +86,7 @@ final class HelperAuthorizationService: ObservableObject {
                 openSystemSettingsAuthorization()
                 startAuthorizationPolling()
             } else if status != .installed {
-                if openDevelopmentInstallerIfAvailable() {
-                    status = .installing
-                    lastError = "正式注册失败：\(error.localizedDescription)。已打开开发期 helper 授权安装器。"
-                    startAuthorizationPolling()
-                } else {
-                    status = .unavailable(error.localizedDescription)
-                }
+                status = .unavailable(error.localizedDescription)
             }
         }
     }
@@ -170,18 +158,5 @@ final class HelperAuthorizationService: ObservableObject {
         }
     }
 
-    private func openDevelopmentInstallerIfAvailable() -> Bool {
-        let bundleURL = Bundle.main.bundleURL
-        let rootCandidate = bundleURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("script/install_helper_dev.command")
 
-        guard FileManager.default.isExecutableFile(atPath: rootCandidate.path) else {
-            return false
-        }
-
-        NSWorkspace.shared.open(rootCandidate)
-        return true
-    }
 }

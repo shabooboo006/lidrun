@@ -135,10 +135,16 @@ swift build
 ./script/build_and_run.sh --telemetry
 ```
 
-开发期安装 helper 需要管理员权限。只有在用户明确要求安装或授权 helper 时才运行：
+开发期测试 helper：用 Developer ID 签名包从稳定位置运行（普通 swift build / ad-hoc 包无法注册 SMAppService helper）：
 
 ```bash
-./script/install_helper_dev.sh
+./script/dev_signed_run.sh
+```
+
+清理与签名包冲突的旧版 ad-hoc helper（需管理员权限，仅在用户明确要求时运行）：
+
+```bash
+sudo ./script/install_helper_dev.sh --cleanup
 ```
 
 验证合盖运行相关改动时，至少检查：
