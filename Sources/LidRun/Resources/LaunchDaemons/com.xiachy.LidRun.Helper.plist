@@ -4,15 +4,17 @@
 <dict>
   <key>Label</key>
   <string>com.xiachy.LidRun.Helper</string>
+  <key>BundleProgram</key>
+  <string>Contents/Library/LaunchDaemons/com.xiachy.LidRun.Helper</string>
   <key>MachServices</key>
   <dict>
     <key>com.xiachy.LidRun.Helper</key>
     <true/>
   </dict>
-  <key>BundleProgram</key>
-  <string>Contents/Library/LaunchDaemons/com.xiachy.LidRun.Helper</string>
-  <key>RunAtLoad</key>
-  <true/>
+  <key>AssociatedBundleIdentifiers</key>
+  <array>
+    <string>com.xiachy.LidRun</string>
+  </array>
   <key>StandardErrorPath</key>
   <string>/var/log/LidRunHelper.error.log</string>
   <key>StandardOutPath</key>
