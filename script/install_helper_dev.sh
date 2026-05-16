@@ -1,57 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# 已废弃：旧的 ad-hoc /Library/LaunchDaemons helper 安装方式与签名包冲突。
+# 现在本脚本只做清理：移除旧版 helper，使签名 SMAppService 路径不再被干扰。
+# 安装/运行请改用 script/dev_signed_run.sh。
+
 HELPER_LABEL="com.xiachy.LidRun.Helper"
 HELPER_TARGET="/Library/PrivilegedHelperTools/$HELPER_LABEL"
 PLIST_TARGET="/Library/LaunchDaemons/$HELPER_LABEL.plist"
-TMP_PLIST="$(mktemp -t LidRunHelper.XXXXXX.plist)"
 
-cleanup() {
-  rm -f "$TMP_PLIST"
-}
-trap cleanup EXIT
+if [[ "${1:-}" != "--cleanup" ]]; then
+  echo "用法: sudo $0 --cleanup"
+  echo "（本脚本已不再安装旧版 helper；安装请用 script/dev_signed_run.sh）"
+  exit 2
+fi
 
-cd "$ROOT_DIR"
-swift build --product LidRunHelper
-HELPER_BUILD="$(swift build --show-bin-path)/LidRunHelper"
+echo "Booting out and removing legacy helper ..."
+sudo launchctl bootout "system/$HELPER_LABEL" >/dev/null 2>&1 || true
+sudo rm -f "$PLIST_TARGET" "$HELPER_TARGET"
 
-cat >"$TMP_PLIST" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key>
-  <string>$HELPER_LABEL</string>
-  <key>MachServices</key>
-  <dict>
-    <key>$HELPER_LABEL</key>
-    <true/>
-  </dict>
-  <key>ProgramArguments</key>
-  <array>
-    <string>$HELPER_TARGET</string>
-  </array>
-  <key>RunAtLoad</key>
-  <true/>
-  <key>StandardErrorPath</key>
-  <string>/var/log/LidRunHelper.error.log</string>
-  <key>StandardOutPath</key>
-  <string>/var/log/LidRunHelper.log</string>
-</dict>
-</plist>
-PLIST
-
-sudo install -o root -g wheel -m 544 "$HELPER_BUILD" "$HELPER_TARGET"
-sudo install -o root -g wheel -m 644 "$TMP_PLIST" "$PLIST_TARGET"
-
-sudo launchctl bootout system "$PLIST_TARGET" >/dev/null 2>&1 || true
-sudo launchctl bootstrap system "$PLIST_TARGET"
-sudo launchctl kickstart -k "system/$HELPER_LABEL"
-
-if launchctl print "system/$HELPER_LABEL" >/dev/null 2>&1; then
-  echo "Installed and started $HELPER_LABEL"
+if [[ ! -e "$PLIST_TARGET" && ! -e "$HELPER_TARGET" ]]; then
+  echo "Legacy helper removed. 现在用 script/dev_signed_run.sh 安装签名包。"
 else
-  echo "Installed $HELPER_LABEL, but launchctl did not report it as running" >&2
+  echo "清理未完全成功，请手动检查 $PLIST_TARGET 和 $HELPER_TARGET" >&2
   exit 1
 fi
