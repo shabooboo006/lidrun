@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LidRun 菜单栏弹出层</title>
+  <style>
+    :root {
+      --desktop: #e8ebef;
+      --menubar: rgba(246, 247, 249, 0.74);
+      --material: rgba(248, 249, 251, 0.84);
+      --material-strong: rgba(255, 255, 255, 0.78);
+      --control: rgba(120, 120, 128, 0.16);
+      --control-hover: rgba(120, 120, 128, 0.22);
+      --separator: rgba(60, 60, 67, 0.14);
+      --text: rgba(0, 0, 0, 0.86);
+      --secondary: rgba(60, 60, 67, 0.62);
+      --tertiary: rgba(60, 60, 67, 0.42);
+      --blue: #0a84ff;
+      --blue-soft: rgba(10, 132, 255, 0.14);
+      --green: #34c759;
+      --red: #ff453a;
+      --yellow: #ffcc00;
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--desktop);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      font-optical-sizing: auto;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 760px;
+      overflow: hidden;
+      padding-top: 36px;
+    }
+
+    .menu-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      background: var(--menubar);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.52);
+      backdrop-filter: blur(24px) saturate(1.6);
+      -webkit-backdrop-filter: blur(24px) saturate(1.6);
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+      font-size: 13px;
+      line-height: 1;
+      font-weight: 400;
+    }
+
+    .menu-left,
+    .menu-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      white-space: nowrap;
+    }
+
+    .apple {
+      width: 16px;
+      height: 16px;
+      display: inline-grid;
+      place-items: center;
+      color: rgba(0, 0, 0, 0.78);
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .menu-app {
+      font-weight: 600;
+    }
+
+    .menu-icon {
+      position: relative;
+      width: 31px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      color: rgba(0, 0, 0, 0.76);
+    }
+
+    .menu-icon.active {
+      color: var(--blue);
+      background: rgba(10, 132, 255, 0.12);
+    }
+
+    .anchor-arrow {
+      position: absolute;
+      top: 37px;
+      right: 92px;
+      z-index: 5;
+      width: 18px;
+      height: 18px;
+      transform: rotate(45deg);
+      background: var(--material);
+      border-top: 1px solid rgba(255, 255, 255, 0.78);
+      border-left: 1px solid rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(28px) saturate(1.5);
+      -webkit-backdrop-filter: blur(28px) saturate(1.5);
+    }
+
+    .popover {
+      position: absolute;
+      top: 45px;
+      right: 36px;
+      z-index: 4;
+      width: 360px;
+      height: 620px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: 8px;
+      background: var(--material);
+      border: 1px solid rgba(255, 255, 255, 0.76);
+      box-shadow:
+        0 28px 80px rgba(0, 0, 0, 0.22),
+        0 4px 18px rgba(0, 0, 0, 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(34px) saturate(1.45);
+      -webkit-backdrop-filter: blur(34px) saturate(1.45);
+    }
+
+    .popover::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .content {
+      position: relative;
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: 16px 16px 12px;
+    }
+
+    .header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--separator);
+    }
+
+    .title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.07;
+      letter-spacing: -0.018em;
+      font-weight: 700;
+    }
+
+    .status-line {
+      margin-top: 7px;
+      min-height: 18px;
+      font-size: 13px;
+      color: var(--secondary);
+      font-weight: 500;
+    }
+
+    .status-line.active {
+      color: color-mix(in srgb, var(--blue) 84%, black 16%);
+    }
+
+    .switch {
+      width: 58px;
+      height: 34px;
+      padding: 2px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(120, 120, 128, 0.28);
+      cursor: pointer;
+      transition: background 160ms ease, box-shadow 160ms ease;
+    }
+
+    .switch .knob {
+      display: block;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+      transform: translateX(0);
+      transition: transform 180ms cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .switch[aria-checked="true"] {
+      background: var(--blue);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+    }
+
+    .switch[aria-checked="true"] .knob {
+      transform: translateX(24px);
+    }
+
+    .section {
+      padding: 11px 0 0;
+    }
+
+    .scroll-stack {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      margin: 10px -4px 0;
+      padding: 0 4px 4px;
+      scrollbar-width: thin;
+    }
+
+    .scroll-stack .section:first-child {
+      padding-top: 0;
+    }
+
+    .scroll-stack::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .scroll-stack::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: rgba(60, 60, 67, 0.18);
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0 0 9px;
+      font-size: 13px;
+      line-height: 1;
+      color: rgba(0, 0, 0, 0.78);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .mode-row,
+    .setting-row,
+    .footer-row {
+      border: 0;
+      width: 100%;
+      color: inherit;
+      background: transparent;
+      text-align: left;
+    }
+
+    .mode-row {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      min-height: 56px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      background: var(--material-strong);
+      border: 1px solid rgba(10, 132, 255, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+    }
+
+    .icon-bubble {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: rgba(0, 0, 0, 0.74);
+      background: var(--control);
+      flex: 0 0 auto;
+    }
+
+    .mode-row .icon-bubble {
+      color: var(--blue);
+      background: var(--blue-soft);
+    }
+
+    .row-title {
+      font-size: 15px;
+      line-height: 1.2;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .row-subtitle {
+      margin-top: 3px;
+      color: var(--secondary);
+      font-size: 12px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .pill {
+      height: 23px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      color: color-mix(in srgb, var(--blue) 82%, black 18%);
+      background: var(--blue-soft);
+    }
+
+    .duration-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      align-items: center;
+      gap: 6px;
+      padding: 0;
+    }
+
+    .preset {
+      justify-self: center;
+      width: 34px;
+      height: 34px;
+      display: inline-grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      color: rgba(0, 0, 0, 0.82);
+      background: var(--control);
+      font-size: 15px;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+    }
+
+    .preset:hover,
+    .circle-action:hover,
+    .footer-row:hover {
+      background: var(--control-hover);
+    }
+
+    .preset:active,
+    .circle-action:active {
+      transform: scale(0.96);
+    }
+
+    .preset.selected {
+      color: #fff;
+      background: var(--blue);
+    }
+
+    .preset:first-child {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .gear {
+      width: 34px;
+      height: 34px;
+    }
+
+    .group {
+      overflow: hidden;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.34);
+      border: 1px solid rgba(60, 60, 67, 0.08);
+    }
+
+    .setting-row {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      cursor: default;
+    }
+
+    .setting-row + .setting-row {
+      border-top: 1px solid rgba(60, 60, 67, 0.09);
+    }
+
+    .setting-row.clickable {
+      cursor: pointer;
+    }
+
+    .setting-label {
+      min-width: 0;
+    }
+
+    .setting-title {
+      font-size: 14px;
+      line-height: 1.15;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .setting-note {
+      margin-top: 2px;
+      font-size: 11px;
+      line-height: 1.15;
+      color: var(--secondary);
+    }
+
+    .mini-switch {
+      width: 39px;
+      height: 24px;
+      padding: 2px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(120, 120, 128, 0.24);
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+
+    .mini-switch .knob {
+      display: block;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+      transform: translateX(0);
+      transition: transform 150ms cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .mini-switch[aria-checked="true"] {
+      background: var(--blue);
+    }
+
+    .mini-switch[aria-checked="true"] .knob {
+      transform: translateX(15px);
+    }
+
+    .value {
+      color: var(--secondary);
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .chevron {
+      color: var(--tertiary);
+      line-height: 1;
+    }
+
+    .safety .setting-row {
+      min-height: 38px;
+    }
+
+    .safety .icon-bubble,
+    .settings .icon-bubble {
+      width: 30px;
+      height: 30px;
+    }
+
+    .safety .danger .icon-bubble {
+      color: color-mix(in srgb, var(--red) 84%, black 16%);
+      background: rgba(255, 69, 58, 0.12);
+    }
+
+    .footer {
+      margin-top: auto;
+      padding-top: 10px;
+    }
+
+    .current {
+      padding: 8px 2px 10px;
+      color: var(--secondary);
+      font-size: 12px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--separator);
+    }
+
+    .footer-menu {
+      padding-top: 4px;
+    }
+
+    .footer-row {
+      display: flex;
+      align-items: center;
+      min-height: 29px;
+      padding: 0 7px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+    }
+
+    svg {
+      width: 19px;
+      height: 19px;
+      display: block;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .menu-icon svg {
+      width: 24px;
+      height: 20px;
+      stroke-width: 1.9;
+    }
+
+    .tiny {
+      width: 15px;
+      height: 15px;
+      stroke-width: 2.2;
+    }
+
+    @media (max-width: 540px) {
+      .stage {
+        min-height: 720px;
+      }
+
+      .menu-left span:not(.menu-app),
+      .menu-right .hide-small {
+        display: none;
+      }
+
+      .popover {
+        right: 12px;
+      }
+
+      .anchor-arrow {
+        right: 68px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <header class="menu-bar" aria-label="macOS 菜单栏">
+      <div class="menu-left">
+        <span class="apple" aria-hidden="true"></span>
+        <span class="menu-app">访达</span>
+        <span>文件</span>
+        <span>编辑</span>
+        <span>显示</span>
+        <span>窗口</span>
+      </div>
+      <div class="menu-right">
+        <span class="hide-small">100%</span>
+        <span class="hide-small">Wi‑Fi</span>
+        <span class="menu-icon active" id="menuIcon" aria-label="LidRun 已激活">
+          <svg viewBox="0 0 32 22" aria-hidden="true">
+            <path d="M7.5 5.5h12.7c1 0 1.8.8 1.8 1.8v8.2H5.7V7.3c0-1 .8-1.8 1.8-1.8Z"></path>
+            <path d="M3.8 17.5h20.1l2.6-2"></path>
+            <path d="M14.5 9.2v4.4l4-2.2-4-2.2Z"></path>
+            <path d="M25.4 7.7c1.2 1 1.8 2.2 1.8 3.7s-.6 2.8-1.8 3.7"></path>
+          </svg>
+        </span>
+        <span>周六 14:28</span>
+      </div>
+    </header>
+
+    <div class="anchor-arrow" aria-hidden="true"></div>
+
+    <section class="popover" aria-label="LidRun 菜单栏弹出层">
+      <div class="content">
+        <header class="header">
+          <div>
+            <h1 class="title">LidRun</h1>
+            <div class="status-line active" id="statusLine">已激活 · 合盖运行保护中</div>
+          </div>
+          <button class="switch" id="mainToggle" type="button" role="switch" aria-checked="true" aria-label="切换 LidRun">
+            <span class="knob"></span>
+          </button>
+        </header>
+
+        <section class="section" aria-labelledby="modeTitle">
+          <h2 class="section-title" id="modeTitle">主模式</h2>
+          <button class="mode-row" type="button">
+            <span class="icon-bubble" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 7.5h10.5c.8 0 1.5.7 1.5 1.5v6H3.5V9c0-.8.7-1.5 1.5-1.5Z"></path>
+                <path d="M2 17h16.5l2.5-2"></path>
+                <path d="M10.5 10v3.8l3.4-1.9-3.4-1.9Z"></path>
+              </svg>
+            </span>
+            <span>
+              <span class="row-title">合盖运行</span>
+              <span class="row-subtitle">合盖后关闭屏幕，任务继续运行</span>
+            </span>
+            <span class="pill" id="authPill">已授权</span>
+          </button>
+        </section>
+
+        <section class="section" aria-labelledby="durationTitle">
+          <h2 class="section-title" id="durationTitle">
+            <span>持续时间</span>
+            <svg class="tiny" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </h2>
+          <div class="duration-grid" aria-label="持续时间预设">
+            <button class="preset selected" type="button" data-label="无限时长" aria-label="无限时长">∞</button>
+            <button class="preset" type="button" data-label="15 分钟">15</button>
+            <button class="preset" type="button" data-label="30 分钟">30</button>
+            <button class="preset" type="button" data-label="45 分钟">45</button>
+            <button class="preset" type="button" data-label="1 小时">1h</button>
+            <button class="preset" type="button" data-label="4 小时">4h</button>
+            <button class="preset" type="button" data-label="8 小时">8h</button>
+            <button class="preset gear" type="button" data-label="自定义" aria-label="自定义时长">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"></path>
+                <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a1.9 1.9 0 0 1-2.7 2.7l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a1.9 1.9 0 0 1-3.8 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a1.9 1.9 0 0 1-2.7-2.7l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a1.9 1.9 0 0 1 0-3.8h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a1.9 1.9 0 0 1 2.7-2.7l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a1.9 1.9 0 0 1 3.8 0v.2a1.6 1.6 0 0 0 1 1.5h.1a1.6 1.6 0 0 0 1.8-.3l.1-.1a1.9 1.9 0 0 1 2.7 2.7l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.2a1.9 1.9 0 0 1 0 3.8h-.2a1.6 1.6 0 0 0-1.5 1Z"></path>
+              </svg>
+            </button>
+          </div>
+        </section>
+
+        <div class="scroll-stack" aria-label="保护规则和设置">
+          <section class="section safety" aria-labelledby="safetyTitle">
+            <h2 class="section-title" id="safetyTitle">保护规则</h2>
+            <div class="group">
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M13 2 5 14h6l-1 8 8-12h-6l1-8Z"></path></svg>
+                </span>
+                <span class="setting-label">
+                  <span class="setting-title">仅接入电源时启用</span>
+                </span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="false" aria-label="仅接入电源时启用"><span class="knob"></span></button>
+              </div>
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M7 7h10v5a5 5 0 0 1-10 0V7Z"></path><path d="M9 7V3"></path><path d="M15 7V3"></path><path d="m5 21 14-14"></path></svg>
+                </span>
+                <span class="setting-label">
+                  <span class="setting-title">断开电源时自动停用</span>
+                </span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="断开电源时自动停用"><span class="knob"></span></button>
+              </div>
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="8" width="16" height="9" rx="2"></rect><path d="M21 11v3"></path><path d="M7 12h5"></path></svg>
+                </span>
+                <span class="setting-label">
+                  <span class="setting-title">电池低于 20% 停用</span>
+                </span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="电池低于 20% 停用"><span class="knob"></span></button>
+              </div>
+              <div class="setting-row danger">
+                <span class="icon-bubble" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"></path><path d="M12 9v7"></path></svg>
+                </span>
+                <span class="setting-label">
+                  <span class="setting-title">温度过高时自动停用</span>
+                </span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="温度过高时自动停用"><span class="knob"></span></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="section settings" aria-labelledby="settingsTitle">
+            <h2 class="section-title" id="settingsTitle">
+              <span>设置</span>
+              <svg class="tiny" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+            </h2>
+            <div class="group">
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2v10"></path><path d="M18.4 6.6a9 9 0 1 1-12.8 0"></path></svg></span>
+                <span class="setting-label"><span class="setting-title">登录时启动</span></span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="登录时启动"><span class="knob"></span></button>
+              </div>
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></span>
+                <span class="setting-label"><span class="setting-title">启动后自动激活</span></span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="启动后自动激活"><span class="knob"></span></button>
+              </div>
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 4 5 12h5l-1 8 10-12h-6l2-4h-5Z"></path></svg></span>
+                <span class="setting-label"><span class="setting-title">左键点击切换</span></span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="左键点击切换"><span class="knob"></span></button>
+              </div>
+              <button class="setting-row clickable" type="button">
+                <span class="icon-bubble" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"></path><path d="M8 11h.01M12 11h.01M16 11h.01"></path></svg></span>
+                <span class="setting-label"><span class="setting-title">键盘快捷键</span></span>
+                <span class="value">⌥⌘L</span>
+              </button>
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H4z"></path><path d="M9 20h6"></path><path d="M12 16v4"></path></svg></span>
+                <span class="setting-label"><span class="setting-title">允许屏幕休眠</span></span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="允许屏幕休眠"><span class="knob"></span></button>
+              </div>
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg></span>
+                <span class="setting-label"><span class="setting-title">允许通知</span></span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="允许通知"><span class="knob"></span></button>
+              </div>
+              <div class="setting-row">
+                <span class="icon-bubble" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r="2.3"></circle><circle cx="7" cy="10" r="2.1"></circle><circle cx="12" cy="16.5" r="2.4"></circle><path d="M17.8 13.2a2.1 2.1 0 1 0 0 4.2h.4a2.1 2.1 0 0 0-.4-4.2Z"></path></svg></span>
+                <span class="setting-label"><span class="setting-title">显示彩色图标</span></span>
+                <button class="mini-switch" type="button" role="switch" aria-checked="true" aria-label="显示彩色图标"><span class="knob"></span></button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <footer class="footer">
+          <div class="current" id="currentStatus">当前：合盖运行 · 无限时长</div>
+          <div class="footer-menu">
+            <button class="footer-row" type="button">高级设置…</button>
+            <button class="footer-row" type="button">关于</button>
+            <button class="footer-row" type="button">退出</button>
+          </div>
+        </footer>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const mainToggle = document.querySelector('#mainToggle');
+    const statusLine = document.querySelector('#statusLine');
+    const currentStatus = document.querySelector('#currentStatus');
+    const menuIcon = document.querySelector('#menuIcon');
+    const presets = Array.from(document.querySelectorAll('.preset'));
+    const switches = Array.from(document.querySelectorAll('.mini-switch'));
+
+    let active = true;
+    let duration = '无限时长';
+
+    function renderState() {
+      mainToggle.setAttribute('aria-checked', String(active));
+      statusLine.textContent = active ? '已激活 · 合盖运行保护中' : '未激活';
+      statusLine.classList.toggle('active', active);
+      menuIcon.classList.toggle('active', active);
+      menuIcon.setAttribute('aria-label', active ? 'LidRun 已激活' : 'LidRun 未激活');
+      currentStatus.textContent = active ? `当前：合盖运行 · ${duration}` : '当前：未激活';
+    }
+
+    mainToggle.addEventListener('click', () => {
+      active = !active;
+      renderState();
+    });
+
+    presets.forEach((button) => {
+      button.addEventListener('click', () => {
+        presets.forEach((item) => item.classList.remove('selected'));
+        button.classList.add('selected');
+        duration = button.dataset.label || button.textContent.trim();
+        if (!active) active = true;
+        renderState();
+      });
+    });
+
+    switches.forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const checked = button.getAttribute('aria-checked') === 'true';
+        button.setAttribute('aria-checked', String(!checked));
+      });
+    });
+  </script>
+</body>
+</html>
