@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import IOKit
 
 @MainActor
 final class AppState: ObservableObject {
@@ -20,6 +21,9 @@ final class AppState: ObservableObject {
     private let hotKeyController = GlobalHotKeyController()
     private var countdownTimer: Timer?
     private var startupTask: Task<Void, Never>?
+    private var clamshellTimer: Timer?
+    private var lastClamshellClosed = false
+    private var lastDisplaySleepAt: Date = .distantPast
 
     init(
         settings: AppSettings = AppSettings(),
@@ -54,6 +58,7 @@ final class AppState: ObservableObject {
         startupTask?.cancel()
         countdownTimer?.invalidate()
         countdownTimer = nil
+        stopClamshellDisplaySleepWatch()
         sleepAssertion.releaseAll()
         if lidRunState == .running || settings.lidRunWasActive || settings.savedDisableSleepValue != nil {
             await disableLidRun(notify: false)
@@ -238,8 +243,9 @@ final class AppState: ObservableObject {
             }
             settings.lidRunWasActive = true
             lidRunState = .running
+            startClamshellDisplaySleepWatch()
             updateStatusMessage()
-            notifications.send(title: "合盖运行已启用", body: "合上盖子后系统将继续运行。", enabled: settings.notificationsEnabled)
+            notifications.send(title: "合盖运行已启用", body: "合上盖子后系统继续运行，屏幕会自动熄灭省电。", enabled: settings.notificationsEnabled)
             AppLog.power.info("Lid close mode enabled")
         } catch {
             if let restoreValue = settings.savedDisableSleepValue, !settings.lidRunWasActive {
@@ -255,6 +261,7 @@ final class AppState: ObservableObject {
     }
 
     private func disableLidRun(notify: Bool) async {
+        stopClamshellDisplaySleepWatch()
         guard settings.lidRunWasActive || lidRunState == .running || settings.savedDisableSleepValue != nil else {
             lidRunState = .off
             return
@@ -321,6 +328,88 @@ final class AppState: ObservableObject {
         if remaining <= 0 {
             Task { await deactivateSession(reason: "持续时间已到", notify: true) }
         }
+    }
+
+    // MARK: - 合盖时强制熄屏（省电）
+    //
+    // 核心“系统不休眠”靠 disablesleep + NoIdleSleep assertion，已验证有效。
+    // 但合盖且无外接显示器时，macOS 会把显示链路保持为“on”（powerd:
+    // "Prevent sleep while display is on"），白白耗电。这里在“合盖运行中
+    // 且盖子物理闭合”时主动 `pmset displaysleepnow`（经 helper 白名单），
+    // 让屏幕真正熄灭；系统仍由 NoIdleSleep 保持运行。严格只在盖子闭合时
+    // 触发，绝不在开盖正常使用时弄黑用户屏幕。
+
+    private func startClamshellDisplaySleepWatch() {
+        clamshellTimer?.invalidate()
+        lastClamshellClosed = false
+        lastDisplaySleepAt = .distantPast
+        clamshellTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.clamshellTick() }
+        }
+    }
+
+    private func stopClamshellDisplaySleepWatch() {
+        clamshellTimer?.invalidate()
+        clamshellTimer = nil
+        lastClamshellClosed = false
+    }
+
+    private func clamshellTick() {
+        guard lidRunState == .running else {
+            stopClamshellDisplaySleepWatch()
+            return
+        }
+        guard Self.isClamshellClosed() else {
+            lastClamshellClosed = false
+            return
+        }
+        // 接了外接显示器（经典 clamshell）时不强制熄屏，避免弄黑用户正在用的外屏。
+        // 仅命中用户场景：合盖 + 无外接显示器的“真无头”状态。
+        guard !Self.hasExternalDisplay() else {
+            lastClamshellClosed = false
+            return
+        }
+        // 盖子闭合且无外接：刚闭合时立即熄屏；持续闭合时每 ~25s 兜底重发
+        // （powerd 在合盖运行态下可能重新点亮显示链路）。
+        let now = Date()
+        let justClosed = !lastClamshellClosed
+        let staleEnough = now.timeIntervalSince(lastDisplaySleepAt) > 25
+        lastClamshellClosed = true
+        guard justClosed || staleEnough else { return }
+        lastDisplaySleepAt = now
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.helperAuthorization.client.displaySleepNow()
+                AppLog.power.info("Forced display sleep (clamshell closed during lid-run)")
+            } catch {
+                // 尽力而为：失败不影响“系统不休眠”核心行为。
+                AppLog.power.error("displaySleepNow failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    /// 读取内置盖子是否物理闭合（IOPMrootDomain 的 AppleClamshellState）。
+    /// 台式机 / 无此键时返回 false —— 绝不在开盖或无盖状态下强制熄屏。
+    private static func isClamshellClosed() -> Bool {
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
+        guard service != 0 else { return false }
+        defer { IOObjectRelease(service) }
+        guard let value = IORegistryEntryCreateCFProperty(
+            service, "AppleClamshellState" as CFString, kCFAllocatorDefault, 0
+        )?.takeRetainedValue() else {
+            return false
+        }
+        return (value as? Bool) ?? false
+    }
+
+    /// 是否有外接（非内建）显示器在线。有则不强制熄屏（保护经典 clamshell 用户）。
+    private static func hasExternalDisplay() -> Bool {
+        var count: UInt32 = 0
+        guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return false }
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetOnlineDisplayList(count, &ids, &count) == .success else { return false }
+        return ids.prefix(Int(count)).contains { CGDisplayIsBuiltin($0) == 0 }
     }
 
     private func enforceProtectionRules(trigger: String) {

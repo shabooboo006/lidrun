@@ -61,7 +61,7 @@ LidRun 是一款原生 macOS 菜单栏应用，用来替代 Caffeinated。它必
 ## Helper 安全边界
 
 - helper 不允许执行任意 shell 命令。
-- helper 只允许白名单电源管理操作，例如读取、启用、恢复 `disablesleep`。
+- helper 只允许白名单电源管理操作：读取/启用/恢复 `disablesleep`，以及无参的 `displaysleepnow`（合盖且无外接显示器时主动熄屏省电，不修改任何 pmset 设置）。
 - 不要在主 App 中直接运行 `/usr/bin/pmset`、`sudo`、shell 脚本或任意命令来改变系统电源设置。
 - 新增 helper 能力时，必须先扩展共享协议，再在 helper 侧做参数校验和白名单限制。
 - 错误信息要可诊断，但不要暴露不必要的敏感环境信息。

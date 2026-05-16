@@ -25,7 +25,8 @@ LidRun 是一款原生 macOS 菜单栏应用（Swift / SwiftUI / AppKit / IOKit 
 ## 功能边界
 
 - 常规防休眠使用 IOKit assertion：`NoIdleSleep` / `NoDisplaySleep`。
-- 合盖运行通过 privileged helper 执行白名单 `pmset` 操作：读取、启用、恢复 `disablesleep`。
+- 合盖运行通过 privileged helper 执行白名单 `pmset` 操作：读取、启用、恢复 `disablesleep`，以及 `displaysleepnow`。
+- 合盖 + 无外接显示器时，LidRun 主动让屏幕熄灭省电（`pmset displaysleepnow`），同时靠 IOKit `NoIdleSleep` 保持系统不休眠；严格只在盖子物理闭合且无外接显示器时触发，绝不弄黑你正在用的屏幕。
 - 主 App 只通过 XPC 调用 helper，App↔helper 双向校验代码签名（同 Team），不执行任意 shell。
 - helper 未安装/未授权时，界面显示「需授权」，普通防休眠仍可用。
 - 保护规则：`仅接入电源时允许` 默认**关闭**（电池下也能合盖）；`电池<20%`、`温度过高` 默认开启作为安全兜底，可在界面调整。

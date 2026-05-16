@@ -41,6 +41,11 @@ struct PMSetController {
         _ = try runPMSet(arguments: ["-a", "disablesleep", enabled ? "1" : "0"])
     }
 
+    /// 白名单：固定无参动作，立即让显示器睡眠。不修改任何 pmset 设置。
+    func displaySleepNow() throws {
+        _ = try runPMSet(arguments: ["displaysleepnow"])
+    }
+
     private func runPMSet(arguments: [String]) throws -> String {
         guard FileManager.default.isExecutableFile(atPath: pmsetURL.path) else {
             throw PMSetError.pmsetNotFound

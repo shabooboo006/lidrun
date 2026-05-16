@@ -139,6 +139,31 @@ final class HelperXPCClient: @unchecked Sendable {
         }
     }
 
+    /// 尽力而为：让显示器立即睡眠（合盖运行省电）。失败不致命，调用方应 `try?`。
+    func displaySleepNow() async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let once = Once()
+            guard let proxy = proxy(onError: { error in
+                once.run {
+                    continuation.resume(throwing: HelperClientError.connectionFailed(error.localizedDescription))
+                }
+            }) else {
+                continuation.resume(throwing: HelperClientError.connectionFailed("无法连接 privileged helper"))
+                return
+            }
+
+            proxy.displaySleepNow { ok, error in
+                once.run {
+                    if ok {
+                        continuation.resume()
+                    } else {
+                        continuation.resume(throwing: HelperClientError.operationFailed((error as String?) ?? "displaysleepnow 失败"))
+                    }
+                }
+            }
+        }
+    }
+
     private func proxy(onError: @escaping (Error) -> Void) -> LidRunHelperProtocol? {
         let connection = makeConnection()
         let proxy = connection.remoteObjectProxyWithErrorHandler { error in

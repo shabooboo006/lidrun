@@ -47,4 +47,15 @@ final class HelperService: NSObject, LidRunHelperProtocol {
             reply(false, error.localizedDescription as NSString)
         }
     }
+
+    func displaySleepNow(withReply reply: @escaping (Bool, NSString?) -> Void) {
+        do {
+            try pmset.displaySleepNow()
+            logger.info("Display sleep now requested")
+            reply(true, nil)
+        } catch {
+            logger.error("Failed to displaysleepnow: \(error.localizedDescription, privacy: .public)")
+            reply(false, error.localizedDescription as NSString)
+        }
+    }
 }
