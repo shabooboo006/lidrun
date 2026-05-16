@@ -68,7 +68,7 @@ sign_release_bundle() {
   find "$APP_DIR" -exec xattr -c {} + 2>/dev/null || true
   find "$APP_DIR" -name '._*' -delete
 
-  codesign "${CODESIGN_ARGS[@]}" "$LAUNCH_DAEMONS_DIR/$HELPER_LABEL"
+  codesign "${CODESIGN_ARGS[@]}" --identifier "$HELPER_LABEL" "$LAUNCH_DAEMONS_DIR/$HELPER_LABEL"
   codesign "${CODESIGN_ARGS[@]}" "$MACOS_DIR/$APP_NAME"
   codesign "${CODESIGN_ARGS[@]}" "$APP_DIR"
 }
