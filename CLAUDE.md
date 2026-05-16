@@ -18,15 +18,20 @@ swift build                          # build both targets (LidRun, LidRunHelper)
 ./script/build_and_run.sh --logs     # launch + stream process logs
 ./script/build_and_run.sh --telemetry# launch + stream subsystem (com.xiachy.LidRun) logs
 ./script/build_and_run.sh --debug    # run the app binary under lldb
-./script/install_helper_dev.sh       # dev-only: sudo-install + bootstrap the privileged helper
+./script/dev_signed_run.sh           # build Developer ID-signed app, install to /Applications, launch (use to test the helper/SMAppService)
+sudo ./script/install_helper_dev.sh --cleanup  # dev-only: remove a legacy ad-hoc helper (cleanup only; no longer installs)
 ```
 
 There are no unit tests and no separate linter; `swift build` is the only
 compile/check gate. `build_and_run.sh` regenerates `dist/LidRun.app` and its
 `Info.plist` from scratch each run (it does not edit them in place — change the
-heredoc in the script, not the generated bundle). Only run
-`install_helper_dev.sh` when the user explicitly asks to install/authorize the
-helper; it prompts for an admin password.
+heredoc in the script, not the generated bundle). The privileged helper can
+only be exercised from a Developer ID-signed bundle in a stable location, so
+test it via `dev_signed_run.sh` (signs, installs to `/Applications`, launches);
+plain `swift build` / ad-hoc `build_and_run.sh` cannot register the SMAppService
+daemon. `install_helper_dev.sh` no longer installs anything — run it only as
+`sudo ./script/install_helper_dev.sh --cleanup` to remove a conflicting legacy
+ad-hoc helper, and only when the user asks.
 
 ## Architecture
 
@@ -95,9 +100,11 @@ Two concerns are easy to break and must be preserved when editing this file:
 
 The helper's mach service name, label, and bundle id are in
 `LidRunConstants`; the LaunchDaemon plist is
-`Sources/LidRun/Resources/LaunchDaemons/com.xiachy.LidRun.Helper.plist` (copied
-into the app bundle by `build_and_run.sh` and installed to
-`/Library/LaunchDaemons/` by `install_helper_dev.sh`).
+`Sources/LidRun/Resources/LaunchDaemons/com.xiachy.LidRun.Helper.plist`, embedded
+at `Contents/Library/LaunchDaemons/` in the app bundle and registered with launchd
+via `SMAppService.daemon(plistName:)` (not manually copied to
+`/Library/LaunchDaemons/`). A leftover ad-hoc daemon there is removed with
+`install_helper_dev.sh --cleanup`.
 
 ## Conventions
 
