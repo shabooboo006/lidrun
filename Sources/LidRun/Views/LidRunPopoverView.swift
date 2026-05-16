@@ -191,6 +191,7 @@ private struct LidRunPrimaryView: View {
 
     private var helperMessage: String {
         if let message = helper.lastError, !message.isEmpty { return message }
+        if case .blocked(let reason) = state.lidRunState { return reason }
         switch helper.status {
         case .requiresApproval: return "请在「系统设置 › 通用 › 登录项」中允许 LidRun。"
         case .needsAuthorization: return "合盖运行需要 helper 修改系统 disablesleep；普通防休眠仍可用。"
