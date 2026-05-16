@@ -20,6 +20,17 @@ final class HelperAuthorizationService: ObservableObject {
         URL(fileURLWithPath: "/Library/LaunchDaemons/\(daemonPlistName)")
     }
 
+    /// 运行中的 App bundle 是否真的内嵌了 daemon plist。
+    /// macOS 26 (Tahoe) 上未注册的内嵌 daemon，SMAppService 状态是 .notFound
+    /// （而非旧系统的 .notRegistered），不能据此判定“缺少 helper”；
+    /// 必须看 bundle 里 Contents/Library/LaunchDaemons/<plist> 是否真实存在。
+    private var isDaemonEmbeddedInBundle: Bool {
+        let url = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Library/LaunchDaemons", isDirectory: true)
+            .appendingPathComponent(daemonPlistName)
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
     func refreshStatus() async {
         status = .unknown
         if await client.ping() {
@@ -59,12 +70,16 @@ final class HelperAuthorizationService: ObservableObject {
             status = .requiresApproval
             startAuthorizationPolling()
             return
-        case .notFound:
-            status = .unavailable("当前 App 包缺少内嵌 LaunchDaemon")
-            lastError = "当前运行的不是带内嵌 helper 的签名包。请用 script/dev_signed_run.sh 生成并安装 Developer ID 签名的 LidRun.app（普通 swift build / ad-hoc 包无法注册 SMAppService helper）。"
-            return
-        case .notRegistered:
-            break
+        case .notFound, .notRegistered:
+            // macOS 26 (Tahoe): a present-but-never-registered embedded daemon
+            // reports .notFound (not .notRegistered). Only bail if the daemon is
+            // genuinely not embedded in this bundle; otherwise fall through and
+            // call register() so BTM creates a record and the approval flow starts.
+            guard isDaemonEmbeddedInBundle else {
+                status = .unavailable("当前 App 包缺少内嵌 LaunchDaemon")
+                lastError = "当前运行的不是带内嵌 helper 的签名包（缺少 Contents/Library/LaunchDaemons/\(daemonPlistName)）。请从 Releases 安装已签名的 LidRun.app，或用 script/dev_signed_run.sh。"
+                return
+            }
         @unknown default:
             break
         }
@@ -119,7 +134,12 @@ final class HelperAuthorizationService: ObservableObject {
         case .notRegistered:
             updateStatusFromLegacyHelperIfPresent(defaultStatus: .needsAuthorization)
         case .notFound:
-            updateStatusFromLegacyHelperIfPresent(defaultStatus: .unavailable("缺少 helper"))
+            if isDaemonEmbeddedInBundle {
+                // Tahoe: embedded but not yet registered → registration available.
+                status = .needsAuthorization
+            } else {
+                updateStatusFromLegacyHelperIfPresent(defaultStatus: .unavailable("缺少 helper"))
+            }
         @unknown default:
             status = .needsAuthorization
         }

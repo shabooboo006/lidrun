@@ -20,7 +20,7 @@ LidRun 是一款原生 macOS 菜单栏应用（Swift / SwiftUI / AppKit / IOKit 
 
 发布包经 Developer ID 签名 + Apple 公证（notarized），正常双击即可打开，无需绕过 Gatekeeper。
 
-> ⚠️ 当前为 **pre-release**：核心的「合盖 + 拔电 + 无外接显示器不休眠」行为尚未在真机完整验证（见 `docs/superpowers/plans/` 的 Task 4.9）。请按发布说明谨慎使用并反馈。
+> ⚠️ 当前为 **pre-release**：helper 注册/授权流程已在 macOS 26 真机验证可用；核心的「合盖 + 拔电 + 无外接显示器物理不休眠」端到端行为仍建议你按发布说明自行验证后再长期依赖。欢迎反馈。
 
 ## 功能边界
 
