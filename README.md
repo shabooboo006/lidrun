@@ -1,83 +1,78 @@
 # LidRun
 
-LidRun 是原生 macOS 菜单栏应用，使用 Swift、SwiftUI、少量 AppKit、IOKit power assertions 和 privileged helper/XPC 实现。
+> 合上 MacBook 盖子，屏幕熄灭，但系统不休眠 —— 长时间任务继续跑。
 
-## 运行
+LidRun 是一款原生 macOS 菜单栏应用（Swift / SwiftUI / AppKit / IOKit / XPC + privileged helper），用来替代 Caffeinated。
+
+它覆盖常规防空闲休眠（IOKit power assertions），但**核心差异**是：
+
+> **合上盖子（甚至拔掉电源、不接外接显示器、内置屏幕熄灭）后，系统不进入睡眠，正在运行的软件继续执行。**
+
+普通 `caffeinate -d` 或 `NoDisplaySleep` 无法解决合盖睡眠，LidRun 通过一个最小白名单的 privileged helper 执行 `pmset disablesleep`，并配合 IOKit assertion 实现。
+
+## 下载安装
+
+到 [Releases](https://github.com/shabooboo006/lidrun/releases) 下载最新版：
+
+1. 下载 `LidRun-<version>.dmg`，打开，将 **LidRun** 拖入「应用程序」。
+2. LidRun 是菜单栏应用（没有 Dock 图标），启动后在顶栏找它的图标。
+3. 开启「合盖运行」时，按提示在 **系统设置 ▸ 通用 ▸ 登录项** 里批准 LidRun 的后台 helper，之后合盖运行才可用。
+
+发布包经 Developer ID 签名 + Apple 公证（notarized），正常双击即可打开，无需绕过 Gatekeeper。
+
+> ⚠️ 当前为 **pre-release**：核心的「合盖 + 拔电 + 无外接显示器不休眠」行为尚未在真机完整验证（见 `docs/superpowers/plans/` 的 Task 4.9）。请按发布说明谨慎使用并反馈。
+
+## 功能边界
+
+- 常规防休眠使用 IOKit assertion：`NoIdleSleep` / `NoDisplaySleep`。
+- 合盖运行通过 privileged helper 执行白名单 `pmset` 操作：读取、启用、恢复 `disablesleep`。
+- 主 App 只通过 XPC 调用 helper，App↔helper 双向校验代码签名（同 Team），不执行任意 shell。
+- helper 未安装/未授权时，界面显示「需授权」，普通防休眠仍可用。
+- 保护规则：`仅接入电源时允许` 默认**关闭**（电池下也能合盖）；`电池<20%`、`温度过高` 默认开启作为安全兜底，可在界面调整。
+- 关闭、退出、断电、低电量、过热或崩溃恢复时，尽量把 `disablesleep` 恢复成开启前保存的原值，不会无条件置 0。
+
+## 从源码构建
+
+需要 macOS 14+ 和 Swift 6 工具链。
 
 ```bash
-./script/build_and_run.sh --verify
+swift build                  # 编译（唯一的编译/检查 gate；无单元测试）
+./script/build_and_run.sh    # 组装 dist/LidRun.app（ad-hoc）并启动菜单栏 App
 ```
 
-脚本会构建 SwiftPM 目标，生成 `dist/LidRun.app`，并通过 Launch Services 启动菜单栏应用。
-
-## 发布签名与公证
-
-LidRun 的正式包需要 Developer ID 签名和 Apple notarization，因为合盖运行依赖内嵌的 privileged LaunchDaemon。
-
-本地 release 构建：
+测试 privileged helper / SMAppService 需要 Developer ID 签名包从稳定位置运行：
 
 ```bash
-./script/build_macos_release.sh
+./script/dev_signed_run.sh   # 构建 Developer ID 签名包，安装到 /Applications，启动
 ```
 
-生成 zip / pkg / dmg：
+清理与签名包冲突的旧版 ad-hoc helper（需管理员，仅在需要时）：
 
 ```bash
-./script/package_macos_release.sh
+sudo ./script/install_helper_dev.sh --cleanup
 ```
 
-Developer ID 签名并提交公证：
+## 发布
+
+正式发布的版本规范、签名/公证、release notes 结构与发布命令，见 `CLAUDE.md` 的 **Release process（规范发布）** 一节。一行构建签名公证包：
 
 ```bash
-NOTARYTOOL_PROFILE=CodeRelayNotary ./script/sign_and_notarize_macos_release.sh
-```
-
-脚本会自动从 keychain 查找 `Developer ID Application` 和 `Developer ID Installer` 证书；也可以通过环境变量显式指定：
-
-```bash
-APP_SIGN_IDENTITY="Developer ID Application: ..." \
-INSTALLER_SIGN_IDENTITY="Developer ID Installer: ..." \
+VERSION=<x.y.z> PACKAGE_FORMATS="zip dmg" \
 NOTARYTOOL_PROFILE=CodeRelayNotary \
 ./script/sign_and_notarize_macos_release.sh
 ```
 
-正式包内的 helper 位于：
+## 仓库结构
 
-```text
-LidRun.app/Contents/Library/LaunchDaemons/com.xiachy.LidRun.Helper
-```
+- `Sources/LidRun/App` — SwiftUI 生命周期、AppKit status item、popover。
+- `Sources/LidRun/Stores/AppState.swift` — 主状态机、倒计时、保护规则、恢复逻辑。
+- `Sources/LidRun/Services` — IOKit assertion、XPC、登录项、通知、电源状态、快捷键。
+- `Sources/LidRun/Support` — 共享字形、状态图标、日志。
+- `Sources/LidRunHelper` — privileged helper，仅白名单 `pmset` 操作。
+- `Sources/LidRunShared` — App 与 helper 共享的 XPC 协议、常量、代码签名 requirement。
+- `AGENTS.md` — 产品范围、电源行为、安全边界、保护策略的中文权威说明（source of truth）。
+- `CLAUDE.md` — 命令、跨文件架构、发布规范。
 
-对应 plist 使用 `BundleProgram`，由 `SMAppService.daemon(plistName:)` 注册。首次启用合盖运行时，App 会打开 macOS “登录项与后台项目”设置页，用户批准后 helper 才会由系统启动。
+## License
 
-## 功能边界
-
-- 普通防休眠使用 IOKit assertion：`NoIdleSleep` 和 `NoDisplaySleep`。
-- 合盖运行模式通过 privileged helper 执行白名单 `pmset` 操作：读取、启用、恢复 `disablesleep`。
-- 主 App 只通过 XPC 调用 helper，不执行任意 shell 命令。
-- helper 未安装或未授权时，界面显示“需授权”，普通防休眠功能仍可使用。
-
-## 开发期 helper 安装
-
-生产形态使用 `SMAppService.daemon(plistName:)` 注册 helper，要求完整签名、公证和内嵌的 launch daemon plist。开发调试时可以先构建，再运行：
-
-```bash
-./script/install_helper_dev.sh
-```
-
-该脚本需要管理员密码，会把 helper 安装到 `/Library/PrivilegedHelperTools/com.xiachy.LidRun.Helper` 并注册 `/Library/LaunchDaemons/com.xiachy.LidRun.Helper.plist`。
-
-如果从 `dist/LidRun.app` 运行，授权按钮在检测到当前包缺少可注册的正式内嵌 daemon 时，也会尝试打开 `script/install_helper_dev.command`，便于本地验证。
-
-## 验证合盖运行
-
-启用合盖运行时，App 会先读取并保存原始 `disablesleep`，再通过 helper 设置 `pmset -a disablesleep 1`，随后立即反读确认系统值已经变为 `1`。如果反读不是 `1`，界面会显示失败原因，不会假装“合盖运行中”。
-
-关闭、退出、断电、低电量或温度过高触发保护时，App 会尽量通过 helper 恢复保存的原始值。
-
-## 关键文件
-
-- `Sources/LidRun/App`: SwiftUI app lifecycle、AppKit status item、popover。
-- `Sources/LidRun/Stores/AppState.swift`: 主状态机、倒计时、保护规则和恢复逻辑。
-- `Sources/LidRun/Services`: IOKit assertion、XPC、登录项、通知、电源状态和快捷键。
-- `Sources/LidRunHelper`: privileged helper，仅允许白名单 `pmset` 操作。
-- `Sources/LidRunShared`: App 与 helper 共享的 XPC 协议和常量。
+[MIT](LICENSE) © 2026 Chunyu Xia

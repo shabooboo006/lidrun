@@ -117,3 +117,104 @@ via `SMAppService.daemon(plistName:)` (not manually copied to
 - When changing quit, countdown, helper, or `disablesleep` restore logic,
   re-check that no path can leave a wrong system power setting behind, and keep
   the state machine, notifications, logs, and UI in sync.
+
+## Release process (规范发布)
+
+This is the authoritative release standard for LidRun. It mirrors the
+conventions used by `github.com/jundot/omlx/releases`, adapted for a signed
+macOS menu-bar app. Follow it for every GitHub release.
+
+### Versioning & tags
+
+- Semantic version `MAJOR.MINOR.PATCH`. The git tag and GitHub release tag are
+  the version prefixed with `v` (e.g. `v0.1.0`).
+- Pre-release suffixes: `-rcN` (release candidate) or `.devN` (dev/testing
+  build), e.g. `v0.2.0-rc1`, `v0.1.0.dev2`. These chronologically precede the
+  matching stable tag.
+- **Gate for a stable / "Latest" release:** `swift build` clean **and** the
+  real-machine helper acceptance test (the lid-closed + unplugged + no external
+  display ⇒ no sleep run, see the plan's Task 4.9 / `AGENTS.md` verification
+  list) has passed on a real Mac. Until that has passed, the release MUST be a
+  GitHub **pre-release** and its notes MUST start with the unverified-core
+  warning (see template).
+
+### Build the release artifacts
+
+Always build fresh from a clean, committed tree at the tag commit:
+
+```bash
+VERSION=0.1.0 PACKAGE_FORMATS="zip dmg" \
+NOTARYTOOL_PROFILE=CodeRelayNotary \
+./script/sign_and_notarize_macos_release.sh
+```
+
+This Developer ID–signs, notarizes, and staples `dist/LidRun-<version>.dmg`
+and `dist/LidRun-<version>-macOS.zip`. Verify before publishing:
+
+```bash
+xcrun stapler validate "dist/LidRun-$VERSION.dmg"
+spctl --assess --type open --context context:primary-signature -v "dist/LidRun-$VERSION.dmg"
+( cd dist && shasum -a 256 "LidRun-$VERSION.dmg" "LidRun-$VERSION-macOS.zip" > "SHA256SUMS-$VERSION.txt" )
+```
+
+Release assets (omlx-style, multiple assets per release):
+
+- `LidRun-<version>.dmg` — primary, notarized + stapled (Gatekeeper-clean).
+- `LidRun-<version>-macOS.zip` — zipped `.app` for scripted installs.
+- `SHA256SUMS-<version>.txt` — checksums of the above.
+
+`dist/` is git-ignored; artifacts live only as release assets, never committed.
+
+### Release notes structure
+
+Title = the tag, nothing else (e.g. `v0.1.0`). Body sections, in order
+(omit a section if empty), Markdown headings verbatim:
+
+```markdown
+> ⚠️ Pre-release. <one-line status — e.g. core clamshell-on-battery behavior
+> not yet verified on real hardware; for testing only.>   ← pre-release only
+
+## Highlights
+<1–3 bullets on the headline change(s)>
+
+## New Features
+- <feature> (#PR)
+
+## Bug Fixes
+- <fix> (#PR)
+
+## Known Limitations
+- <caveats users must know before relying on it>
+
+## Install
+1. Download `LidRun-<version>.dmg`, open it, drag **LidRun** to Applications.
+2. First launch: it's a menu-bar app (no Dock icon) — look in the menu bar.
+3. To enable 合盖运行, approve the helper in System Settings ▸ 通用 ▸ 登录项.
+   (The app is Developer ID signed + notarized; no Gatekeeper override needed.)
+
+## Checksums
+```
+<contents of SHA256SUMS-<version>.txt>
+```
+
+**Full Changelog**: https://github.com/shabooboo006/lidrun/compare/<prev>...<tag>
+```
+
+(For the first release there is no previous tag — replace the Full Changelog
+line with `**Full Changelog**: https://github.com/shabooboo006/lidrun/commits/<tag>`.)
+
+### Publish
+
+```bash
+git tag -a v<version> -m "v<version>"
+git push origin main --tags
+gh release create v<version> \
+  dist/LidRun-<version>.dmg dist/LidRun-<version>-macOS.zip dist/SHA256SUMS-<version>.txt \
+  --title "v<version>" \
+  --notes-file <notes.md> \
+  [--prerelease]      # required until the Task 4.9 gate passes
+```
+
+Stable releases omit `--prerelease` (GitHub auto-marks the newest non-prerelease
+as **Latest**). Never delete or re-point a published tag; ship a new patch
+version instead.
