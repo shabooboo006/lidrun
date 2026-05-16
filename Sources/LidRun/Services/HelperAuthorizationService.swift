@@ -50,8 +50,8 @@ final class HelperAuthorizationService: ObservableObject {
         case .enabled:
             await refreshStatus()
             if status != .installed {
-                status = .unavailable("helper 已批准，但 XPC 暂未响应")
-                lastError = "helper 已批准，但 XPC 暂未响应。请重启 LidRun 或在系统设置中重新启用后台项目。"
+                status = .unavailable("已批准但 XPC 未通过校验")
+                lastError = "helper 已被系统批准，但 XPC 未通过代码签名校验或未响应。请确认运行的是 Developer ID 签名包（script/dev_signed_run.sh），并清理旧版 helper（script/install_helper_dev.sh --cleanup）。"
             }
             return
         case .requiresApproval:
@@ -145,8 +145,8 @@ final class HelperAuthorizationService: ObservableObject {
 
         switch SMAppService.statusForLegacyPlist(at: legacyPlistURL) {
         case .enabled:
-            status = .unavailable("本地 helper 未响应")
-            lastError = "检测到 /Library/LaunchDaemons 中的开发期 helper，但 XPC 未响应。"
+            status = .unavailable("检测到旧版 helper")
+            lastError = "检测到 /Library/LaunchDaemons 中的旧版（ad-hoc）helper，与签名包冲突。请运行 script/install_helper_dev.sh --cleanup 移除后重试。"
         case .requiresApproval:
             status = .requiresApproval
         case .notRegistered, .notFound:
