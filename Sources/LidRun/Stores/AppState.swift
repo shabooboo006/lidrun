@@ -151,9 +151,20 @@ final class AppState: ObservableObject {
     }
 
     func showAbout() {
+        let info = Bundle.main.infoDictionary
+        let shortVersion = (info?["CFBundleShortVersionString"] as? String) ?? "开发版"
+        let build = info?["CFBundleVersion"] as? String
+        let versionLine = build.map { "版本 \(shortVersion) (\($0))" } ?? "版本 \(shortVersion)"
+
         let alert = NSAlert()
-        alert.messageText = "LidRun"
-        alert.informativeText = "原生 macOS 菜单栏工具，用于防止空闲睡眠，并在授权后支持合盖继续运行。"
+        alert.messageText = "LidRun \(shortVersion)"
+        alert.informativeText = """
+        \(versionLine)
+
+        原生 macOS 菜单栏工具，用于防止空闲睡眠，并在授权后支持合盖继续运行。
+
+        https://github.com/shabooboo006/lidrun
+        """
         alert.alertStyle = .informational
         alert.addButton(withTitle: "好")
         alert.runModal()

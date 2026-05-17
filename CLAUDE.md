@@ -132,11 +132,14 @@ macOS menu-bar app. Follow it for every GitHub release.
   build), e.g. `v0.2.0-rc1`, `v0.1.0.dev2`. These chronologically precede the
   matching stable tag.
 - **Gate for a stable / "Latest" release:** `swift build` clean **and** the
-  real-machine helper acceptance test (the lid-closed + unplugged + no external
-  display ⇒ no sleep run, see the plan's Task 4.9 / `AGENTS.md` verification
-  list) has passed on a real Mac. Until that has passed, the release MUST be a
-  GitHub **pre-release** and its notes MUST start with the unverified-core
-  warning (see template).
+  core real-machine acceptance — helper registers/approves on the target macOS
+  and lid-closed + unplugged + no external display ⇒ system does not sleep —
+  has passed on a real Mac. This core was verified on macOS 26.4.1 (v0.1.1+),
+  so stable `--latest` releases are allowed. Any enhancement not yet physically
+  verified (e.g. the forced display-off省电 behavior) must NOT be a stable
+  blocker but MUST be listed under **Known Limitations** in the notes. Before
+  the core has ever been verified on a target OS, the release MUST be a GitHub
+  **pre-release** with the unverified-core warning at the top of its notes.
 
 ### Build the release artifacts
 
