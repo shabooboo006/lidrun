@@ -156,18 +156,20 @@ final class AppState: ObservableObject {
         let build = info?["CFBundleVersion"] as? String
         let versionLine = build.map { "版本 \(shortVersion) (\($0))" } ?? "版本 \(shortVersion)"
 
+        let projectURL = URL(string: "https://github.com/shabooboo006/lidrun")!
         let alert = NSAlert()
         alert.messageText = "LidRun \(shortVersion)"
         alert.informativeText = """
         \(versionLine)
 
         原生 macOS 菜单栏工具，用于防止空闲睡眠，并在授权后支持合盖继续运行。
-
-        https://github.com/shabooboo006/lidrun
         """
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "好")
-        alert.runModal()
+        alert.addButton(withTitle: "好")                 // 默认（回车）
+        alert.addButton(withTitle: "打开 GitHub 项目")     // 第二个按钮
+        if alert.runModal() == .alertSecondButtonReturn {
+            NSWorkspace.shared.open(projectURL)
+        }
     }
 
     func quit() {
@@ -357,6 +359,7 @@ final class AppState: ObservableObject {
         clamshellTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.clamshellTick() }
         }
+        AppLog.power.notice("Clamshell display-sleep watch started (lid-run running)")
     }
 
     private func stopClamshellDisplaySleepWatch() {
@@ -392,10 +395,11 @@ final class AppState: ObservableObject {
             guard let self else { return }
             do {
                 try await self.helperAuthorization.client.displaySleepNow()
-                AppLog.power.info("Forced display sleep (clamshell closed during lid-run)")
+                // .notice 会被系统日志持久化，便于 `log show` 验证是否真的熄屏。
+                AppLog.power.notice("Forced display sleep (clamshell closed, no external display, lid-run running)")
             } catch {
                 // 尽力而为：失败不影响“系统不休眠”核心行为。
-                AppLog.power.error("displaySleepNow failed: \(error.localizedDescription, privacy: .public)")
+                AppLog.power.error("displaySleepNow failed (helper may be stale — re-register): \(error.localizedDescription, privacy: .public)")
             }
         }
     }

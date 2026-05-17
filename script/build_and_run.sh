@@ -34,6 +34,8 @@ BUILD_RESOURCE_BUNDLE="$BUILD_BIN_DIR/${APP_NAME}_${APP_NAME}.bundle"
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES" "$APP_LAUNCH_DAEMONS"
+# 让 Spotlight 永不索引 dist/，避免开发构建在启动台出现重复图标。
+touch "$DIST_DIR/.metadata_never_index"
 cp "$BUILD_BINARY" "$APP_BINARY"
 cp "$BUILD_HELPER" "$HELPER_BINARY"
 cp "$ROOT_DIR/Sources/LidRun/Resources/LaunchDaemons/com.xiachy.LidRun.Helper.plist" "$APP_LAUNCH_DAEMONS/"

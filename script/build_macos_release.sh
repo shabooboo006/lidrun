@@ -76,6 +76,8 @@ sign_release_bundle() {
 cd "$ROOT_DIR"
 rm -rf "$BUILD_DIR" "$APP_DIR"
 mkdir -p "$BUILD_DIR" "$MACOS_DIR" "$RESOURCES_DIR" "$LAUNCH_DAEMONS_DIR"
+# 让 Spotlight/LaunchServices 永不索引 dist/，避免构建产物在启动台出现重复图标。
+touch "$DIST_DIR/.metadata_never_index"
 
 swift build -c release
 "$ICON_BUILD_SCRIPT" "$ICON_SOURCE_DIR" "$ICON_ICNS_PATH" >/dev/null

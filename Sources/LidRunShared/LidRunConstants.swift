@@ -6,7 +6,9 @@ public enum LidRunConstants {
     public static let helperLabel = "com.xiachy.LidRun.Helper"
     public static let helperMachServiceName = "com.xiachy.LidRun.Helper"
     public static let helperExecutableName = "LidRunHelper"
-    public static let helperProtocolVersion = 2
+    // 3: 新增 displaySleepNow 白名单能力（合盖熄屏省电）。提升版本号让旧
+    // helper 被识别为过旧，触发重新注册以获得新能力。
+    public static let helperProtocolVersion = 3
     public static let minimumSystemVersion = "14.0"
 
     /// Developer ID 团队标识（出现在证书 subject.OU）。

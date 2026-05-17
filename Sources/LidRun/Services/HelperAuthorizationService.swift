@@ -60,11 +60,12 @@ final class HelperAuthorizationService: ObservableObject {
         switch service.status {
         case .enabled:
             await refreshStatus()
-            if status != .installed {
-                status = .unavailable("已批准但 XPC 未通过校验")
-                lastError = "helper 已被系统批准，但 XPC 未通过代码签名校验或未响应。请确认运行的是 Developer ID 签名包（script/dev_signed_run.sh），并清理旧版 helper（script/install_helper_dev.sh --cleanup）。"
-            }
-            return
+            if status == .installed { return }
+            // 已注册但 XPC 不通过 / 版本过旧（常见：升级到带新能力的版本后，
+            // 系统仍跑着旧 helper）。注销旧注册，落到下方重新注册当前 bundle
+            // 内嵌的新 helper（用户需在系统设置再批准一次）。
+            AppLog.helper.notice("Registered helper stale/unverified; re-registering for new capabilities")
+            try? service.unregister()
         case .requiresApproval:
             openSystemSettingsAuthorization()
             status = .requiresApproval

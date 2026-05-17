@@ -212,6 +212,10 @@ fi
 
 validate_release_app
 
+# 清理纯中间产物，避免遗留可被索引的 .app 副本（启动台重复图标根因之一）。
+# dist/ 已有 .metadata_never_index 兜底，这里再做一次卫生清理。
+rm -rf "$STAGE_DIR" "$PKG_ROOT_DIR"
+
 printf '%s\n' "$APP_DIR"
 if has_format zip; then printf '%s\n' "$ZIP_PATH"; fi
 if has_format pkg; then printf '%s\n' "$PKG_PATH"; fi
