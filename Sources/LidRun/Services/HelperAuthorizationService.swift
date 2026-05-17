@@ -65,7 +65,7 @@ final class HelperAuthorizationService: ObservableObject {
             // 系统仍跑着旧 helper）。注销旧注册，落到下方重新注册当前 bundle
             // 内嵌的新 helper（用户需在系统设置再批准一次）。
             AppLog.helper.notice("Registered helper stale/unverified; re-registering for new capabilities")
-            try? service.unregister()
+            try? await service.unregister()
         case .requiresApproval:
             openSystemSettingsAuthorization()
             status = .requiresApproval
