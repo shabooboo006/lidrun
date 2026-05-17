@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_DIR="${1:-$ROOT_DIR/Packaging/macOS/AppIcon.appiconset}"
 OUTPUT_PATH="${2:-$ROOT_DIR/Packaging/macOS/AppIcon.icns}"
-GLYPH_PATH="${3:-$ROOT_DIR/Packaging/macOS/Generated/LidRunHalfOpenTemplate.png}"
 TMP_DIR="$(mktemp -d)"
 GENERATOR="$TMP_DIR/generate_lidrun_icon.swift"
 ICONSET_DIR="$TMP_DIR/AppIcon.iconset"
@@ -16,22 +15,16 @@ trap cleanup EXIT
 
 mkdir -p "$SOURCE_DIR" "$ICONSET_DIR" "$(dirname "$OUTPUT_PATH")"
 
-if [[ ! -f "$GLYPH_PATH" ]]; then
-  echo "Missing glyph template: $GLYPH_PATH" >&2
-  exit 1
-fi
-
+# 应用图标与菜单栏图标/界面字标共用同一字形（LidGlyph，单一来源）。
+# 这里按 LidRunShared 的 LidGlyph 设计坐标（26×20，盖子矩形 + 底座矩形，
+# 中间留细缝）直接程序化绘制，不再依赖任何旧的 PNG 模板，
+# 保证通知/Dock/启动台图标与菜单栏图标是同一套设计。
 cat >"$GENERATOR" <<'SWIFT'
 import AppKit
 import Foundation
 
 let outputURL = URL(fileURLWithPath: CommandLine.arguments[1])
-let glyphURL = URL(fileURLWithPath: CommandLine.arguments[2])
 let sizes = [16, 32, 64, 128, 256, 512, 1024]
-
-guard let sourceGlyph = NSImage(contentsOf: glyphURL) else {
-    throw NSError(domain: "LidRunIcon", code: 1, userInfo: [NSLocalizedDescriptionKey: "无法读取图标模板：\(glyphURL.path)"])
-}
 
 func color(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat = 1) -> NSColor {
     NSColor(calibratedRed: red / 255, green: green / 255, blue: blue / 255, alpha: alpha)
@@ -42,29 +35,30 @@ func fillRoundedRect(_ rect: NSRect, radius: CGFloat, with color: NSColor) {
     NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
 }
 
-func tintedGlyph(size: NSSize, color: NSColor) -> NSImage {
-    let glyph = NSImage(size: size)
-    glyph.lockFocus()
-    NSGraphicsContext.current?.shouldAntialias = true
-    NSGraphicsContext.current?.imageInterpolation = .high
+// LidGlyph 设计坐标系（与 Sources/LidRun/Support/LidGlyphShape.swift 完全一致）：
+// 参考尺寸 26×20，y 向下；lid=(5.6,3.0,14.8,9.0)，base=(2.4,13.2,21.2,4.0)，
+// 圆角 r = min(sx,sy)*2.0。这里在 1024 画布内、y 向上坐标系中等比绘制。
+let glyphRefW: CGFloat = 26, glyphRefH: CGFloat = 20
+let glyphBoxW: CGFloat = 600
+let glyphBoxH: CGFloat = glyphBoxW * glyphRefH / glyphRefW   // 保持比例
+let glyphX0: CGFloat = (1024 - glyphBoxW) / 2
+let glyphY0: CGFloat = (1024 - glyphBoxH) / 2
+let sx = glyphBoxW / glyphRefW
+let sy = glyphBoxH / glyphRefH
+let glyphRadius = min(sx, sy) * 2.0
 
-    let rect = NSRect(origin: .zero, size: size)
-    color.setFill()
-    rect.fill()
-    sourceGlyph.draw(
-        in: rect,
-        from: NSRect(origin: .zero, size: sourceGlyph.size),
-        operation: .destinationIn,
-        fraction: 1
+/// 设计坐标（y 向下，从顶部量）映射到 1024 画布的 y 向上 NSRect。
+func glyphRect(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> NSRect {
+    NSRect(
+        x: glyphX0 + x * sx,
+        y: glyphY0 + (glyphRefH - (y + h)) * sy,
+        width: w * sx,
+        height: h * sy
     )
-
-    glyph.unlockFocus()
-    return glyph
 }
 
 func drawIcon(size: Int) throws {
-    let side = CGFloat(size)
-    let scale = side / 1024
+    let scale = CGFloat(size) / 1024
     guard let bitmap = NSBitmapImageRep(
         bitmapDataPlanes: nil,
         pixelsWide: size,
@@ -92,6 +86,7 @@ func drawIcon(size: Int) throws {
     transform.scale(by: scale)
     transform.concat()
 
+    // 背景圆角方块（深色渐变，沿用已确认的应用图标风格）。
     let background = NSBezierPath(roundedRect: NSRect(x: 64, y: 64, width: 896, height: 896), xRadius: 218, yRadius: 218)
     let backgroundGradient = NSGradient(colorsAndLocations:
         (color(33, 44, 60), 0.0),
@@ -100,8 +95,9 @@ func drawIcon(size: Int) throws {
     )!
     backgroundGradient.draw(in: background, angle: 90)
 
+    // 字形后方柔光，居中跟随字形。
     if size >= 64 {
-        let glow = NSBezierPath(roundedRect: NSRect(x: 180, y: 246, width: 664, height: 240), xRadius: 106, yRadius: 106)
+        let glow = NSBezierPath(roundedRect: NSRect(x: 152, y: 332, width: 720, height: 360), xRadius: 150, yRadius: 150)
         let glowGradient = NSGradient(colorsAndLocations:
             (color(35, 211, 180, 0.18), 0.0),
             (color(35, 211, 180, 0.08), 1.0)
@@ -109,11 +105,27 @@ func drawIcon(size: Int) throws {
         glowGradient.draw(in: glow, angle: 90)
     }
 
-    let glyph = tintedGlyph(size: NSSize(width: 1024, height: 1024), color: color(246, 250, 255))
-    glyph.draw(in: NSRect(x: 0, y: 0, width: 1024, height: 1024), from: .zero, operation: .sourceOver, fraction: 1)
+    // LidGlyph：盖子矩形 + 底座矩形（与菜单栏图标同款），近白色。
+    let glyphColor = color(246, 250, 255)
+    glyphColor.setFill()
+    let lid = NSBezierPath(roundedRect: glyphRect(5.6, 3.0, 14.8, 9.0), xRadius: glyphRadius, yRadius: glyphRadius)
+    let base = NSBezierPath(roundedRect: glyphRect(2.4, 13.2, 21.2, 4.0), xRadius: glyphRadius, yRadius: glyphRadius)
+    lid.fill()
+    base.fill()
 
+    // 右上角绿色状态点，落在盖子右上角处（与菜单栏图标语义一致）。
+    // 先用 .clear 挖一圈透明环，让圆点与字形之间留出干净缝隙。
     if size >= 32 {
-        fillRoundedRect(NSRect(x: 724, y: 660, width: 78, height: 78), radius: 39, with: color(52, 211, 153))
+        let lidRight = glyphX0 + 20.4 * sx
+        let lidTop = glyphY0 + 17.0 * sy
+        let d: CGFloat = 168
+        let dotRect = NSRect(x: lidRight - d / 2, y: lidTop - d / 2, width: d, height: d)
+        let ring = dotRect.insetBy(dx: -34, dy: -34)
+        context.cgContext.setBlendMode(.clear)
+        context.cgContext.fillEllipse(in: ring)
+        context.cgContext.setBlendMode(.normal)
+        color(52, 211, 153).setFill()
+        NSBezierPath(ovalIn: dotRect).fill()
     }
 
     NSGraphicsContext.restoreGraphicsState()
@@ -130,7 +142,7 @@ for size in sizes {
 }
 SWIFT
 
-swift "$GENERATOR" "$SOURCE_DIR" "$GLYPH_PATH"
+swift "$GENERATOR" "$SOURCE_DIR"
 
 cp "$SOURCE_DIR/16.png" "$ICONSET_DIR/icon_16x16.png"
 cp "$SOURCE_DIR/32.png" "$ICONSET_DIR/icon_16x16@2x.png"
