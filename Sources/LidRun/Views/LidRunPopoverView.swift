@@ -301,6 +301,10 @@ private struct AssertionSectionView: View {
                 get: { settings.preventDisplaySleep },
                 set: { settings.preventDisplaySleep = $0; state.updateSleepAssertions() }
             ))
+            SettingsToggleRow(icon: "lock.slash", title: "防止屏保与锁屏", subtitle: "屏幕保持点亮，不进入屏保、不自动锁屏", isOn: Binding(
+                get: { settings.preventScreenLock },
+                set: { settings.preventScreenLock = $0; state.updateSleepAssertions() }
+            ))
         }
     }
 }

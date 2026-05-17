@@ -45,6 +45,9 @@ LidRun 是一款原生 macOS 菜单栏应用，用来替代 Caffeinated。它必
 
 - 防止系统空闲睡眠使用 `kIOPMAssertionTypeNoIdleSleep`。
 - 防止显示器空闲睡眠使用 `kIOPMAssertionTypeNoDisplaySleep`。
+- 防止屏保与自动锁屏使用 `kIOPMAssertionTypePreventUserIdleDisplaySleep`：屏幕保持点亮，
+  既不进入屏保也不空闲锁屏。纯 IOKit、不经 helper、不修改任何系统安全设置，因此不与
+  「绝不绕过锁屏」边界冲突（是保持屏幕点亮，而非绕过熄屏后的锁屏）。
 - 必须支持允许屏幕休眠但阻止系统睡眠。
 - 必须支持无限时长、15/30/45 分钟、1/4/8 小时、自定义时长。
 - 到期后必须自动释放 assertion 并关闭相关状态。

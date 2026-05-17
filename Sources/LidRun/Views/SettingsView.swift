@@ -53,6 +53,13 @@ struct SettingsView: View {
                         state.updateSleepAssertions()
                     }
                 ))
+                Toggle("防止屏保与锁屏", isOn: Binding(
+                    get: { settings.preventScreenLock },
+                    set: {
+                        settings.preventScreenLock = $0
+                        state.updateSleepAssertions()
+                    }
+                ))
             }
 
             Section("启动与控制") {

@@ -116,7 +116,8 @@ final class AppState: ObservableObject {
         guard isActive else { return }
         sleepAssertion.update(
             preventSystemSleep: settings.preventSystemSleep,
-            preventDisplaySleep: settings.preventDisplaySleep
+            preventDisplaySleep: settings.preventDisplaySleep,
+            preventScreenLock: settings.preventScreenLock
         )
         updateStatusMessage()
     }
@@ -188,7 +189,8 @@ final class AppState: ObservableObject {
         isActive = true
         sleepAssertion.update(
             preventSystemSleep: settings.preventSystemSleep,
-            preventDisplaySleep: settings.preventDisplaySleep
+            preventDisplaySleep: settings.preventDisplaySleep,
+            preventScreenLock: settings.preventScreenLock
         )
         configureDurationTimer()
 
@@ -474,7 +476,7 @@ final class AppState: ObservableObject {
 
         if settings.lidRunEnabled {
             statusMessage = "\(lidRunState.title) · \(durationText)"
-        } else if settings.preventSystemSleep || settings.preventDisplaySleep {
+        } else if settings.preventSystemSleep || settings.preventDisplaySleep || settings.preventScreenLock {
             statusMessage = "防休眠中 · \(durationText)"
         } else {
             statusMessage = "已激活 · 未选择防睡眠项"

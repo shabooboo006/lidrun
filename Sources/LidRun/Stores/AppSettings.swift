@@ -6,6 +6,7 @@ final class AppSettings: ObservableObject {
         static let lidRunEnabled = "lidRunEnabled"
         static let preventSystemSleep = "preventSystemSleep"
         static let preventDisplaySleep = "preventDisplaySleep"
+        static let preventScreenLock = "preventScreenLock"
         static let selectedDuration = "selectedDuration"
         static let customMinutes = "customMinutes"
         static let launchAtLogin = "launchAtLogin"
@@ -26,6 +27,7 @@ final class AppSettings: ObservableObject {
     @Published var lidRunEnabled: Bool { didSet { defaults.set(lidRunEnabled, forKey: Key.lidRunEnabled) } }
     @Published var preventSystemSleep: Bool { didSet { defaults.set(preventSystemSleep, forKey: Key.preventSystemSleep) } }
     @Published var preventDisplaySleep: Bool { didSet { defaults.set(preventDisplaySleep, forKey: Key.preventDisplaySleep) } }
+    @Published var preventScreenLock: Bool { didSet { defaults.set(preventScreenLock, forKey: Key.preventScreenLock) } }
     @Published var selectedDuration: DurationOption { didSet { defaults.set(selectedDuration.rawValue, forKey: Key.selectedDuration) } }
     @Published var customMinutes: Int { didSet { defaults.set(customMinutes, forKey: Key.customMinutes) } }
     @Published var launchAtLogin: Bool { didSet { defaults.set(launchAtLogin, forKey: Key.launchAtLogin) } }
@@ -62,6 +64,7 @@ final class AppSettings: ObservableObject {
         lidRunEnabled = defaults.object(forKey: Key.lidRunEnabled) as? Bool ?? false
         preventSystemSleep = defaults.object(forKey: Key.preventSystemSleep) as? Bool ?? true
         preventDisplaySleep = defaults.object(forKey: Key.preventDisplaySleep) as? Bool ?? false
+        preventScreenLock = defaults.object(forKey: Key.preventScreenLock) as? Bool ?? false
         selectedDuration = DurationOption(rawValue: defaults.string(forKey: Key.selectedDuration) ?? "") ?? .unlimited
         customMinutes = max(1, defaults.object(forKey: Key.customMinutes) as? Int ?? 120)
         launchAtLogin = defaults.object(forKey: Key.launchAtLogin) as? Bool ?? false
