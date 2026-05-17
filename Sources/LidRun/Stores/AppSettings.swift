@@ -71,7 +71,7 @@ final class AppSettings: ObservableObject {
         activateOnLaunch = defaults.object(forKey: Key.activateOnLaunch) as? Bool ?? false
         quickToggleClick = defaults.object(forKey: Key.quickToggleClick) as? Bool ?? false
         notificationsEnabled = defaults.object(forKey: Key.notificationsEnabled) as? Bool ?? true
-        coloredIcon = defaults.object(forKey: Key.coloredIcon) as? Bool ?? true
+        coloredIcon = defaults.object(forKey: Key.coloredIcon) as? Bool ?? false
         // 默认关闭：用户的核心场景是断电也要能合盖不休眠（见 spec §2）。
         // 低电量/过热保护仍默认开启作为安全兜底。
         acOnlyProtection = defaults.object(forKey: Key.acOnlyProtection) as? Bool ?? false
