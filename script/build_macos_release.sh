@@ -20,7 +20,14 @@ APP_NAME="LidRun"
 HELPER_PRODUCT="LidRunHelper"
 HELPER_LABEL="com.xiachy.LidRun.Helper"
 VERSION="${VERSION:-0.1.0}"
-BUILD_NUMBER="${BUILD_NUMBER:-1}"
+# CFBundleVersion must change every release: macOS Icon Services /
+# LaunchServices / 通知中心 按 (bundle id + bundle version) 缓存应用图标，
+# 版本号不变就永远沿用首次缓存的旧图标（参见 v0.1.8 修复）。
+# 默认用 git 提交数，单调递增、每个发布提交都不同；可用环境变量覆盖。
+if [ -z "${BUILD_NUMBER:-}" ]; then
+  BUILD_NUMBER="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-list --count HEAD 2>/dev/null || true)"
+  [ -n "$BUILD_NUMBER" ] || BUILD_NUMBER="1"
+fi
 SIGNING_MODE="${SIGNING_MODE:-adhoc}"
 APP_SIGN_IDENTITY="${APP_SIGN_IDENTITY:-}"
 KEYCHAIN_PATH="${KEYCHAIN_PATH:-}"
