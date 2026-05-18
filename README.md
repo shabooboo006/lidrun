@@ -18,6 +18,8 @@ LidRun 是一款原生 macOS 菜单栏应用（Swift / SwiftUI / AppKit / IOKit 
 2. LidRun 是菜单栏应用（没有 Dock 图标），启动后在顶栏找它的图标。
 3. 开启「合盖运行」时，按提示在 **系统设置 ▸ 通用 ▸ 登录项** 里批准 LidRun 的后台 helper，之后合盖运行才可用。
 
+菜单栏图标默认使用 macOS 模板图标，会随浅色/深色顶栏自动适配；如需彩色状态图标，可在应用设置中开启「彩色菜单栏图标」。
+
 发布包经 Developer ID 签名 + Apple 公证（notarized），正常双击即可打开，无需绕过 Gatekeeper。
 
 > ⚠️ 当前为 **pre-release**：helper 注册/授权流程已在 macOS 26 真机验证可用；核心的「合盖 + 拔电 + 无外接显示器物理不休眠」端到端行为仍建议你按发布说明自行验证后再长期依赖。欢迎反馈。
