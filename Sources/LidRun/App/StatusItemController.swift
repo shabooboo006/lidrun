@@ -21,6 +21,7 @@ final class StatusItemController: NSObject {
     private func configureStatusItem() {
         guard let button = statusItem.button else { return }
         button.imagePosition = .imageOnly
+        button.setAccessibilityLabel("LidRun")
         button.target = self
         button.action = #selector(statusItemClicked(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -77,6 +78,7 @@ final class StatusItemController: NSObject {
             helperStatus: state.helperAuthorization.status
         )
         button.toolTip = state.statusMessage
+        button.setAccessibilityHelp(state.statusMessage)
     }
 
     @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
