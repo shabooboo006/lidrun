@@ -17,8 +17,9 @@ mkdir -p "$SOURCE_DIR" "$ICONSET_DIR" "$(dirname "$OUTPUT_PATH")"
 
 # 应用图标与菜单栏图标/界面字标共用同一字形（LidGlyph，单一来源）。
 # 这里按 LidRunShared 的 LidGlyph 设计坐标（26×20，盖子矩形 + 底座矩形，
-# 中间留细缝）直接程序化绘制，不再依赖任何旧的 PNG 模板，
-# 保证通知/Dock/启动台图标与菜单栏图标是同一套设计。
+# 中间留细缝）直接程序化绘制，不再依赖任何旧的 PNG 模板。
+# 简约非彩色版：深色圆角方块 + 纯白字形，不画绿色状态点、不画柔光，
+# 保证通知/Dock/启动台图标与菜单栏非彩色字形是同一套观感。
 cat >"$GENERATOR" <<'SWIFT'
 import AppKit
 import Foundation
@@ -95,15 +96,7 @@ func drawIcon(size: Int) throws {
     )!
     backgroundGradient.draw(in: background, angle: 90)
 
-    // 字形后方柔光，居中跟随字形。
-    if size >= 64 {
-        let glow = NSBezierPath(roundedRect: NSRect(x: 152, y: 332, width: 720, height: 360), xRadius: 150, yRadius: 150)
-        let glowGradient = NSGradient(colorsAndLocations:
-            (color(35, 211, 180, 0.18), 0.0),
-            (color(35, 211, 180, 0.08), 1.0)
-        )!
-        glowGradient.draw(in: glow, angle: 90)
-    }
+    // 简约非彩色：不画柔光（去除任何彩色光晕）。
 
     // LidGlyph：盖子矩形 + 底座矩形（与菜单栏图标同款），近白色。
     let glyphColor = color(246, 250, 255)
@@ -113,20 +106,7 @@ func drawIcon(size: Int) throws {
     lid.fill()
     base.fill()
 
-    // 右上角绿色状态点，落在盖子右上角处（与菜单栏图标语义一致）。
-    // 先用 .clear 挖一圈透明环，让圆点与字形之间留出干净缝隙。
-    if size >= 32 {
-        let lidRight = glyphX0 + 20.4 * sx
-        let lidTop = glyphY0 + 17.0 * sy
-        let d: CGFloat = 168
-        let dotRect = NSRect(x: lidRight - d / 2, y: lidTop - d / 2, width: d, height: d)
-        let ring = dotRect.insetBy(dx: -34, dy: -34)
-        context.cgContext.setBlendMode(.clear)
-        context.cgContext.fillEllipse(in: ring)
-        context.cgContext.setBlendMode(.normal)
-        color(52, 211, 153).setFill()
-        NSBezierPath(ovalIn: dotRect).fill()
-    }
+    // 简约非彩色：不画状态点（菜单栏负责动态状态；图标本体保持纯净）。
 
     NSGraphicsContext.restoreGraphicsState()
 
